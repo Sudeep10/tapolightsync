@@ -7,7 +7,7 @@ import spotipy
 import yaml
 from colorthief import ColorThief
 from curl_cffi import requests
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from rich.console import Console
 from rich.progress import Progress
 from spotipy.oauth2 import SpotifyPKCE
@@ -47,11 +47,17 @@ class SpotifyDetails(BaseModel):
     redirect_uri: str
 
 
+class AppConfig(BaseModel):
+    off_on_pause: bool = True
+    off_on_stop: bool = True
+
+
 class Config(BaseModel):
     email: str
     password: str
     devices: list[Device]
     spotify: SpotifyDetails
+    app_config: AppConfig = Field(default_factory=AppConfig)
 
     model_config = {"extra": "forbid", "frozen": True}
 
@@ -170,13 +176,15 @@ async def main():
             player_state = PlayerState.Paused
             console.print("Music paused", style="bold yellow")
             current_uri = None
-            for device in devices:
-                await device.off()
+            if config.app_config.off_on_pause:
+                for device in devices:
+                    await device.off()
         elif playback_state is None and player_state is not PlayerState.Stopped:
             player_state = PlayerState.Stopped
             console.print("No music playing", style="bold yellow")
-            for device in devices:
-                await device.off()
+            if config.app_config.off_on_stop:
+                for device in devices:
+                    await device.off()
         if player_state == PlayerState.Playing:
             await asyncio.sleep(2)
         else:
