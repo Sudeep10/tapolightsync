@@ -8,3 +8,7 @@ devices:
 spotify:
   client_id:
   redirect_uri:
+
+app_config:
+  off_on_pause: false
+  off_on_stop: true
