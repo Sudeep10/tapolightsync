@@ -1,0 +1,10 @@
+email:
+password:
+
+devices:
+  - type: L900
+    ip: 192.168.0.1
+
+spotify:
+  client_id:
+  redirect_uri:
