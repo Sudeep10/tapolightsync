@@ -14,7 +14,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
@@ -28,7 +28,7 @@ jobs:
         run: uv sync --locked --all-extras --dev
 
       - name: Run pyinstaller
-        run: uvx pyinstaller -F main.py --hidden-import numpy.core.multiarray
+        run: uv run pyinstaller -F main.py --hidden-import numpy.core.multiarray
 
       - name: Upload artifact
         uses: actions/upload-artifact@v6
