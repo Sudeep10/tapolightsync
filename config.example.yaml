@@ -6,8 +6,12 @@ devices:
     ip: 192.168.0.1
 
 spotify:
+  login_type:
   client_id:
   redirect_uri:
+  sp_dc:
+  sp_t:
+  email:
 
 app_config:
   off_on_pause: false

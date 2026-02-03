@@ -1,16 +1,12 @@
 import asyncio
 import colorsys
-from enum import Enum
 from io import BytesIO
 
-import spotipy
+import fast_colorthief
+import requests_cache
 import yaml
-from colorthief import ColorThief
 from curl_cffi import requests
-from pydantic import BaseModel, Field
-from rich.console import Console
 from rich.progress import Progress
-from spotipy.oauth2 import SpotifyPKCE
 from tapo import (
     ApiClient,
     ColorLightHandler,
@@ -19,47 +15,11 @@ from tapo import (
 )
 from yaml.parser import ParserError
 
-console = Console()
+from console import console
+from model import Config, DeviceType, PlayerState
+from spotify import get_spotify_client
 
-
-class DeviceType(str, Enum):
-    L530 = "L530"
-    L535 = "L535"
-    L630 = "L630"
-    L900 = "L900"
-    L920 = "L920"
-    L930 = "L930"
-
-
-class PlayerState(str, Enum):
-    Playing = "playing"
-    Paused = "paused"
-    Stopped = "stopped"
-
-
-class Device(BaseModel):
-    type: DeviceType
-    ip: str
-
-
-class SpotifyDetails(BaseModel):
-    client_id: str
-    redirect_uri: str
-
-
-class AppConfig(BaseModel):
-    off_on_pause: bool = True
-    off_on_stop: bool = True
-
-
-class Config(BaseModel):
-    email: str
-    password: str
-    devices: list[Device]
-    spotify: SpotifyDetails
-    app_config: AppConfig = Field(default_factory=AppConfig)
-
-    model_config = {"extra": "forbid", "frozen": True}
+requests_cache.install_cache("images_cache")
 
 
 def load_config() -> Config:
@@ -104,33 +64,34 @@ def get_color(file: BytesIO) -> tuple[int, int]:
         sat = max(1, int(round(s * 100)))
         return (hue, sat)
 
-    cf = ColorThief(file)
-    r, g, b = cf.get_color(quality=1)
+    r, g, b = fast_colorthief.get_dominant_color(file, quality=1)
+    console.log(r, g, b)
     hue, sat = get_hs(r, g, b)
-    console.log(hue, sat)
+    console.log(f"Hue:{hue} Sat:{sat}, RGB:{(r, g, b)}")
     if sat <= 10:
         console.log("low sat, changing")
-        palette = cf.get_palette(color_count=5)
+        palette = fast_colorthief.get_palette(file, quality=1)
         best = max(
             palette,
             key=lambda c: colorsys.rgb_to_hsv(c[0] / 255, c[1] / 255, c[2] / 255)[1],
         )
         r, g, b = best
         hue, sat = get_hs(r, g, b)
-        console.log("Changed", hue, sat)
+        console.log(f"Hue:{hue} Sat:{sat}, RGB:{(r, g, b)}")
         return (hue, sat)
     return (hue, sat)
 
 
 async def main():
     config = load_config()
-    sp = spotipy.Spotify(
-        auth_manager=SpotifyPKCE(
-            client_id=config.spotify.client_id,
-            redirect_uri=config.spotify.redirect_uri,
-            scope=["user-read-playback-state"],
-        )
-    )
+    with console.status("Testing spotify credentials"):
+        sp = get_spotify_client(config.spotify)
+        try:
+            sp.login()
+        except Exception as e:
+            console.log("Spotify Login Error", style="bold red")
+            raise e
+
     client = ApiClient(config.email, config.password)
     devices: list[
         ColorLightHandler | RgbLightStripHandler | RgbicLightStripHandler
@@ -150,16 +111,16 @@ async def main():
     current_uri = None
     player_state = None
     while True:
-        playback_state = sp.current_playback()
+        playback_state = sp.current_playback
         if (
             playback_state
-            and playback_state["item"]["uri"] != current_uri
-            and playback_state["is_playing"]
+            and playback_state.uri != current_uri
+            and playback_state.is_playing
         ):
             player_state = PlayerState.Playing
             console.print("Changing color", style="bold green")
-            current_uri = playback_state["item"]["uri"]
-            image_url = playback_state["item"]["album"]["images"][0]["url"]
+            current_uri = playback_state.uri
+            image_url = playback_state.image_url
             console.log(image_url)
             image_data = requests.get(image_url).content
             hue, sat = get_color(BytesIO(image_data))
@@ -170,17 +131,18 @@ async def main():
                 await device.set_hue_saturation(hue, sat)
         elif (
             playback_state
-            and not playback_state["is_playing"]
+            and not playback_state.is_playing
             and player_state is not PlayerState.Paused
         ):
             player_state = PlayerState.Paused
-            console.print("Music paused", style="bold yellow")
             current_uri = None
+            console.print("Music paused", style="bold yellow")
             if config.app_config.off_on_pause:
                 for device in devices:
                     await device.off()
         elif playback_state is None and player_state is not PlayerState.Stopped:
             player_state = PlayerState.Stopped
+            current_uri = None
             console.print("No music playing", style="bold yellow")
             if config.app_config.off_on_stop:
                 for device in devices:
