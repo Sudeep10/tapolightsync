@@ -57,6 +57,9 @@ class SpotifyOauthClient:
             return None
         uri = playback_state["item"]["uri"]
         image_url = playback_state["item"]["album"]["images"][0]["url"]
+        if image_url is None:
+            # fallback image
+            image_url = "https://placehold.co/600x400/3366ff/FFFFFF/png"
         is_playing = playback_state["is_playing"]
         return TrackDetails(uri, image_url, is_playing)
 
@@ -102,9 +105,14 @@ class SpotifyConnectClient:
         if playback_state.track is None:
             return None
         uri = playback_state.track.uri
-        image_url = playback_state.track.metadata.image_large_url
+        image_url = None
+        if playback_state.track.metadata is not None:
+            image_url = playback_state.track.metadata.image_large_url
         if image_url and image_url.startswith("spotify"):
             image_url = "https://i.scdn.co/image/" + image_url.split(":")[-1]
+        if image_url is None:
+            # fallback image
+            image_url = "https://placehold.co/600x400/3366ff/FFFFFF/png"
         is_playing = not playback_state.is_paused
         return TrackDetails(uri, image_url, is_playing)
 
