@@ -2,8 +2,8 @@ import asyncio
 import colorsys
 from io import BytesIO
 
-import fast_colorthief
 import yaml
+from colorthief import ColorThief
 from requests_cache import CachedSession
 from rich.progress import Progress
 from tapo import (
@@ -63,12 +63,13 @@ def get_color(file: BytesIO) -> tuple[int, int]:
         sat = max(1, int(round(s * 100)))
         return (hue, sat)
 
-    r, g, b = fast_colorthief.get_dominant_color(file, quality=1)
+    cf = ColorThief(file)
+    r, g, b = cf.get_color(quality=1)
     hue, sat = get_hs(r, g, b)
     console.log(f"Hue: {hue} Sat: {sat}, RGB: {(r, g, b)}")
     if sat <= 10:
         console.log("low sat, changing")
-        palette = fast_colorthief.get_palette(file, quality=1)
+        palette = cf.get_palette(quality=1)
         best = max(
             palette,
             key=lambda c: colorsys.rgb_to_hsv(c[0] / 255, c[1] / 255, c[2] / 255)[1],

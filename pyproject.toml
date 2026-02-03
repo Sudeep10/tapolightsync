@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "fast-colorthief>=0.0.5",
+    "colorthief>=0.2.1",
     "pydantic>=2.12.5",
     "pymongo>=4.16.0",
     "pyyaml>=6.0.3",
