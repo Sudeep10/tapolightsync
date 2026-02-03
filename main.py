@@ -65,7 +65,6 @@ def get_color(file: BytesIO) -> tuple[int, int]:
         return (hue, sat)
 
     r, g, b = fast_colorthief.get_dominant_color(file, quality=1)
-    console.log(r, g, b)
     hue, sat = get_hs(r, g, b)
     console.log(f"Hue:{hue} Sat:{sat}, RGB:{(r, g, b)}")
     if sat <= 10:
