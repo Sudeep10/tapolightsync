@@ -44,19 +44,19 @@ jobs:
 
       - name: Build binary (Linux x86_64)
         if: ${{matrix.platform == 'linux' && matrix.arch == 'x86_64'}}
-        run: uv run pyinstaller --name tapolightsync -F main.py --hidden-import numpy.core.multiarray --add-binary '.venv/lib/python3.12/site-packages/tls_client/dependencies/tls-client-x86.so:tls_client/dependencies'
+        run: uv run pyinstaller --name tapolightsync -F main.py --add-binary '.venv/lib/python3.12/site-packages/tls_client/dependencies/tls-client-x86.so:tls_client/dependencies'
 
       - name: Build binary (Windows x86_64)
         if: ${{matrix.platform == 'windows' && matrix.arch == 'x86_64'}}
-        run: uv run pyinstaller --name tapolightsync -F main.py --hidden-import numpy.core.multiarray --add-binary '.venv/Lib/site-packages/tls_client/dependencies/tls-client-64.dll;tls_client/dependencies'
+        run: uv run pyinstaller --name tapolightsync -F main.py --add-binary '.venv/Lib/site-packages/tls_client/dependencies/tls-client-64.dll;tls_client/dependencies'
 
       - name: Build binary (Macos x86_64)
         if: ${{matrix.platform == 'macos' && matrix.arch == 'x86_64'}}
-        run: uv run pyinstaller --name tapolightsync -F main.py --hidden-import numpy.core.multiarray --add-binary '.venv/lib/python3.12/site-packages/tls_client/dependencies/tls-client-x86.dylib:tls_client/dependencies'
+        run: uv run pyinstaller --name tapolightsync -F main.py --add-binary '.venv/lib/python3.12/site-packages/tls_client/dependencies/tls-client-x86.dylib:tls_client/dependencies'
 
       - name: Build binary (Macos arm64)
         if: ${{matrix.platform == 'macos' && matrix.arch == 'arm64'}}
-        run: uv run pyinstaller --name tapolightsync -F main.py --hidden-import numpy.core.multiarray --add-binary '.venv/lib/python3.12/site-packages/tls_client/dependencies/tls-client-arm64.dylib:tls_client/dependencies'
+        run: uv run pyinstaller --name tapolightsync -F main.py --add-binary '.venv/lib/python3.12/site-packages/tls_client/dependencies/tls-client-arm64.dylib:tls_client/dependencies'
 
       - name: Upload artifact
         uses: actions/upload-artifact@v6
