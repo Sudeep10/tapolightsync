@@ -3,9 +3,8 @@ import colorsys
 from io import BytesIO
 
 import fast_colorthief
-import requests_cache
 import yaml
-from curl_cffi import requests
+from requests_cache import CachedSession
 from rich.progress import Progress
 from tapo import (
     ApiClient,
@@ -19,7 +18,7 @@ from console import console
 from model import Config, DeviceType, PlayerState
 from spotify import get_spotify_client
 
-requests_cache.install_cache("images_cache")
+session = CachedSession(cache_control=True)
 
 
 def load_config() -> Config:
@@ -66,7 +65,7 @@ def get_color(file: BytesIO) -> tuple[int, int]:
 
     r, g, b = fast_colorthief.get_dominant_color(file, quality=1)
     hue, sat = get_hs(r, g, b)
-    console.log(f"Hue:{hue} Sat:{sat}, RGB:{(r, g, b)}")
+    console.log(f"Hue: {hue} Sat: {sat}, RGB: {(r, g, b)}")
     if sat <= 10:
         console.log("low sat, changing")
         palette = fast_colorthief.get_palette(file, quality=1)
@@ -76,7 +75,7 @@ def get_color(file: BytesIO) -> tuple[int, int]:
         )
         r, g, b = best
         hue, sat = get_hs(r, g, b)
-        console.log(f"Hue:{hue} Sat:{sat}, RGB:{(r, g, b)}")
+        console.log(f"Hue: {hue} Sat: {sat}, RGB: {(r, g, b)}")
         return (hue, sat)
     return (hue, sat)
 
@@ -121,7 +120,7 @@ async def main():
             current_uri = playback_state.uri
             image_url = playback_state.image_url
             console.log(image_url)
-            image_data = requests.get(image_url).content
+            image_data = session.get(image_url).content
             hue, sat = get_color(BytesIO(image_data))
             for device in devices:
                 # Fix for paused music. Shouldn't be necessary according to docs of set_hue_saturation, but without this device doesn't power on when sending same hue, sat values.
