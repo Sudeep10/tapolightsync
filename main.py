@@ -116,18 +116,22 @@ async def main():
             and playback_state.uri != current_uri
             and playback_state.is_playing
         ):
-            player_state = PlayerState.Playing
             console.print("Changing color", style="bold green")
             current_uri = playback_state.uri
             image_url = playback_state.image_url
             console.log(image_url)
             image_data = session.get(image_url).content
             hue, sat = get_color(BytesIO(image_data))
-            for device in devices:
-                # Fix for paused music. Shouldn't be necessary according to docs of set_hue_saturation, but without this device doesn't power on when sending same hue, sat values.
-                await device.on()
+
+            # Fix for paused or stopped music. Shouldn't be necessary according to docs of set_hue_saturation, but without this device doesn't power on when sending same hue, sat values.
+            if player_state is not PlayerState.Playing:
+                for device in devices:
+                    await device.on()
                 await asyncio.sleep(2)
+
+            for device in devices:
                 await device.set_hue_saturation(hue, sat)
+            player_state = PlayerState.Playing
         elif (
             playback_state
             and not playback_state.is_playing
@@ -146,7 +150,7 @@ async def main():
             if config.app_config.off_on_stop:
                 for device in devices:
                     await device.off()
-        if player_state == PlayerState.Playing:
+        if player_state is PlayerState.Playing:
             await asyncio.sleep(2)
         else:
             await asyncio.sleep(5)
