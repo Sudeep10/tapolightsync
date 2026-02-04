@@ -55,7 +55,10 @@ class SpotifyOauthClient:
         playback_state = self._client.current_playback()
         if playback_state is None:
             return None
-        uri = playback_state["item"]["uri"]
+        track = playback_state["item"]
+        if track is None:
+            return None
+        uri = track["uri"]
         image_url = playback_state["item"]["album"]["images"][0]["url"]
         if image_url is None:
             # fallback image
