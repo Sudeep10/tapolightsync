@@ -2,12 +2,17 @@ name: Build Binaries
 
 on:
   push:
+    branches:
+      - "**"
     tags:
       - "v*"
+  pull_request:
   workflow_dispatch:
 
 jobs:
   build:
+    permissions:
+      contents: read
     strategy:
       matrix:
         include:
@@ -33,7 +38,8 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout
+        uses: actions/checkout@v6
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
@@ -48,26 +54,59 @@ jobs:
 
       - name: Build binary (Linux x86_64)
         if: ${{matrix.platform == 'linux' && matrix.arch == 'x86_64'}}
-        run: uv run pyinstaller --name tapolightsync -F main.py --add-binary '.venv/lib/python3.12/site-packages/tls_client/dependencies/tls-client-x86.so:tls_client/dependencies' --add-binary '.venv/lib/python3.12/site-packages/tls_client/dependencies/tls-client-amd64.so:tls_client/dependencies'
+        run: uv run pyinstaller --name tapolightsync-${{ matrix.platform }}-${{ matrix.arch }} -F main.py --add-binary '.venv/lib/python3.12/site-packages/tls_client/dependencies/tls-client-x86.so:tls_client/dependencies' --add-binary '.venv/lib/python3.12/site-packages/tls_client/dependencies/tls-client-amd64.so:tls_client/dependencies'
 
       - name: Build binary (Linux arm64)
         if: ${{matrix.platform == 'linux' && matrix.arch == 'arm64'}}
-        run: uv run pyinstaller --name tapolightsync -F main.py --add-binary '.venv/lib/python3.12/site-packages/tls_client/dependencies/tls-client-arm64.so:tls_client/dependencies'
+        run: uv run pyinstaller --name tapolightsync-${{ matrix.platform }}-${{ matrix.arch }} -F main.py --add-binary '.venv/lib/python3.12/site-packages/tls_client/dependencies/tls-client-arm64.so:tls_client/dependencies'
 
       - name: Build binary (Windows x86_64)
         if: ${{matrix.platform == 'windows' && matrix.arch == 'x86_64'}}
-        run: uv run pyinstaller --name tapolightsync -F main.py --add-binary '.venv/Lib/site-packages/tls_client/dependencies/tls-client-64.dll;tls_client/dependencies'
+        run: uv run pyinstaller --name tapolightsync-${{ matrix.platform }}-${{ matrix.arch }} -F main.py --add-binary '.venv/Lib/site-packages/tls_client/dependencies/tls-client-64.dll;tls_client/dependencies'
 
       - name: Build binary (Macos x86_64)
         if: ${{matrix.platform == 'macos' && matrix.arch == 'x86_64'}}
-        run: uv run pyinstaller --name tapolightsync -F main.py --add-binary '.venv/lib/python3.12/site-packages/tls_client/dependencies/tls-client-x86.dylib:tls_client/dependencies'
+        run: uv run pyinstaller --name tapolightsync-${{ matrix.platform }}-${{ matrix.arch }} -F main.py --add-binary '.venv/lib/python3.12/site-packages/tls_client/dependencies/tls-client-x86.dylib:tls_client/dependencies'
 
       - name: Build binary (Macos arm64)
         if: ${{matrix.platform == 'macos' && matrix.arch == 'arm64'}}
-        run: uv run pyinstaller --name tapolightsync -F main.py --add-binary '.venv/lib/python3.12/site-packages/tls_client/dependencies/tls-client-arm64.dylib:tls_client/dependencies'
+        run: uv run pyinstaller --name tapolightsync-${{ matrix.platform }}-${{ matrix.arch }} -F main.py --add-binary '.venv/lib/python3.12/site-packages/tls_client/dependencies/tls-client-arm64.dylib:tls_client/dependencies'
 
       - name: Upload artifact
         uses: actions/upload-artifact@v6
         with:
           name: tapolightsync-${{ matrix.platform }}-${{ matrix.arch }}
           path: dist/*
+
+  release:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Generate a changelog
+        uses: orhun/git-cliff-action@v4
+        with:
+          args: --tag ${{ github.ref_name }}
+        env:
+          OUTPUT: CHANGELOG.md
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v7
+        with:
+          path: dist
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: CHANGELOG.md
+          draft: true
+          files: |
+            dist/**/*
